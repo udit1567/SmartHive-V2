@@ -1,6 +1,9 @@
 import os
 import tempfile
+import urllib.error
+import urllib.request
 from io import BytesIO
+from urllib.parse import urlparse
 
 from flask import Blueprint, current_app, request, send_from_directory
 
@@ -16,8 +19,9 @@ def _detection_root():
 
 
 def _load_yolo(kind):
-    if kind in _models:
-        return _models[kind]
+    cached = _models.get(kind)
+    if cached is not None:
+        return cached, None
 
     try:
         import torch
@@ -48,7 +52,14 @@ def _extract_detections(results, model):
         for box in result.boxes:
             class_name = model.names[int(box.cls)]
             confidence = round(float(box.conf), 4)
-            detections.append({"class": class_name, "confidence": confidence})
+            xyxy = box.xyxy[0].tolist()
+            detections.append(
+                {
+                    "class": class_name,
+                    "confidence": confidence,
+                    "box": [round(float(v), 1) for v in xyxy],
+                }
+            )
             class_counts[class_name] = class_counts.get(class_name, 0) + 1
     return detections, class_counts
 
@@ -140,6 +151,104 @@ def _run_base64_detection(kind, category, count_key, missing_message):
         }, 200
     except Exception as exc:
         return {"error": str(exc)}, 500
+
+
+def _crop_jpeg(data):
+    start = data.find(b"\xff\xd8")
+    end = data.find(b"\xff\xd9", start + 2)
+    if start >= 0 and end >= 0:
+        return data[start : end + 2]
+    return None
+
+
+def _read_remote_frame(url):
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError("Camera URL must start with http:// or https://")
+
+    req = urllib.request.Request(url, headers={"User-Agent": "SmartHive-V2"})
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        content_type = (resp.headers.get("Content-Type") or "").lower()
+        chunks = []
+        total = 0
+        while total < 6_000_000:
+            piece = resp.read(64 * 1024)
+            if not piece:
+                break
+            chunks.append(piece)
+            total += len(piece)
+            blob = b"".join(chunks)
+            jpeg = _crop_jpeg(blob)
+            if jpeg and (
+                "mjpeg" in content_type
+                or "multipart" in content_type
+                or blob.count(b"\xff\xd9") >= 1
+            ):
+                return jpeg
+        blob = b"".join(chunks)
+        return _crop_jpeg(blob) or blob or None
+
+
+def _run_live_detection(kind, count_key):
+    user, error = get_device_user()
+    if error:
+        return error
+
+    model, load_error = _load_yolo(kind)
+    if load_error:
+        return {"error": load_error}, 503
+
+    image_bytes = None
+    if "image" in request.files:
+        image_bytes = request.files["image"].read()
+    else:
+        payload = request.get_json(silent=True) or {}
+        source_url = (payload.get("source_url") or "").strip()
+        image_base64 = payload.get("image_base64")
+        if source_url:
+            try:
+                image_bytes = _read_remote_frame(source_url)
+            except (urllib.error.URLError, ValueError, TimeoutError, OSError) as exc:
+                return {"error": f"Could not read camera URL: {exc}"}, 400
+        elif image_base64:
+            import base64
+
+            image_bytes = base64.b64decode(image_base64)
+
+    if not image_bytes:
+        return {"error": "Send a webcam frame or a camera URL"}, 400
+
+    temp = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+    temp_path = temp.name
+    temp.write(image_bytes)
+    temp.close()
+    try:
+        results = model.predict(source=temp_path, verbose=False)
+        detections, class_counts = _extract_detections(results, model)
+        shape = getattr(results[0], "orig_shape", (0, 0))
+        height, width = int(shape[0]), int(shape[1])
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+    return {
+        "counts": class_counts,
+        count_key: len(detections),
+        "detections": detections,
+        "width": width,
+        "height": height,
+        "live": True,
+    }, 200
+
+
+@bp.route("/detect_live_objects", methods=["POST"])
+def detect_live_objects():
+    return _run_live_detection("object", "total_objects")
+
+
+@bp.route("/detect_live_plant_disease", methods=["POST"])
+def detect_live_plant_disease():
+    return _run_live_detection("plant", "total_diseases_detected")
 
 
 @bp.route("/detect_objects", methods=["POST"])
