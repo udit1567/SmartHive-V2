@@ -1,90 +1,83 @@
 <script setup>
-import { computed, onMounted, onUnmounted } from "vue";
+import { useLivePins } from "@/composables/useLivePins";
+import WidgetCard from "@/components/WidgetCard.vue";
 
-import MetricCard from "@/components/MetricCard.vue";
-import SparkLine from "@/components/SparkLine.vue";
-import { SENSOR_META, useSensorStore } from "@/stores/sensors";
-
-const sensors = useSensorStore();
-let timer;
-
-const tempSeries = computed(() =>
-  sensors.series.map((row) => row.D1).filter((n) => n !== null && n !== undefined)
-);
-
-function display(key) {
-  const value = sensors.latestByKey[key];
-  return value === null || value === undefined ? "—" : Number(value).toFixed(1);
-}
-
-onMounted(async () => {
-  await sensors.refresh();
-  timer = setInterval(() => sensors.refresh(), 20000);
-});
-
-onUnmounted(() => {
-  clearInterval(timer);
-});
+const { dashboard, historyByPin, reading } = useLivePins();
 </script>
 
 <template>
   <section>
     <header>
-      <p class="eyebrow">Now</p>
-      <h1>The room, at rest.</h1>
-      <p class="note" v-if="sensors.loading">Listening…</p>
-      <p class="note" v-else-if="sensors.error">{{ sensors.error }}</p>
-      <p class="note" v-else-if="!sensors.series.length">
-        No readings yet. Pair a device and wait for the first pulse.
-      </p>
+      <div>
+        <h1>Dashboard</h1>
+        <p>Live readings from the widgets you already set up.</p>
+      </div>
+      <router-link class="edit" :to="{ name: 'edit' }">Edit</router-link>
     </header>
 
-    <SparkLine :points="tempSeries" />
-
-    <div class="grid">
-      <MetricCard
-        v-for="sensor in SENSOR_META"
-        :key="sensor.key"
-        :label="sensor.label"
-        :value="display(sensor.key)"
-        :unit="sensor.unit"
+    <div v-if="dashboard.widgets.length" class="grid">
+      <WidgetCard
+        v-for="widget in dashboard.widgets"
+        :key="widget.id"
+        :widget="widget"
+        :value="reading(widget.pin)"
+        :history="historyByPin[widget.pin] || []"
       />
+    </div>
+
+    <div v-else class="empty">
+      <p>No widgets yet. Open Edit to drag cards onto the board and bind them to D1–D8.</p>
+      <router-link :to="{ name: 'edit' }">Edit dashboard</router-link>
     </div>
   </section>
 </template>
 
 <style scoped>
 header {
-  max-width: 36rem;
-  margin-bottom: 2rem;
-}
-
-.eyebrow {
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  font-size: 0.7rem;
-  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
 }
 
 h1 {
-  font-size: clamp(2.6rem, 5vw, 4.2rem);
-  margin: 0.4rem 0 0.8rem;
+  font-size: 1.9rem;
+  font-weight: 800;
 }
 
-.note {
+header p {
   color: var(--muted);
+  margin-top: 0.3rem;
+}
+
+.edit {
+  background: var(--oasis-teal);
+  color: #fff;
+  font-weight: 800;
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0 2rem;
-  margin-top: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
 }
 
-@media (max-width: 980px) {
-  .grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+.empty {
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 3.5rem 1.5rem;
+  text-align: center;
+  color: var(--muted);
+}
+
+.empty a {
+  display: inline-block;
+  margin-top: 1rem;
+  color: var(--oasis-teal);
+  font-weight: 800;
 }
 </style>
