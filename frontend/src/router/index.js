@@ -1,67 +1,50 @@
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, createWebHashHistory } from "vue-router";
 
+import AppLayout from "@/layouts/AppLayout.vue";
+import MarketingLayout from "@/layouts/MarketingLayout.vue";
 import { useAuthStore } from "@/stores/auth";
+import AccountView from "@/views/AccountView.vue";
+import DashboardEditView from "@/views/DashboardEditView.vue";
+import DeviceView from "@/views/DeviceView.vue";
+import HomeView from "@/views/HomeView.vue";
+import LoginView from "@/views/LoginView.vue";
+import OverviewView from "@/views/OverviewView.vue";
+import PlantsView from "@/views/PlantsView.vue";
+import SightView from "@/views/SightView.vue";
+import SignupView from "@/views/SignupView.vue";
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHashHistory(),
   routes: [
     {
       path: "/",
-      component: () => import("@/layouts/MarketingLayout.vue"),
+      component: MarketingLayout,
       children: [
-        {
-          path: "",
-          name: "home",
-          component: () => import("@/views/HomeView.vue"),
-        },
-        {
-          path: "login",
-          name: "login",
-          component: () => import("@/views/LoginView.vue"),
-        },
-        {
-          path: "signup",
-          name: "signup",
-          component: () => import("@/views/SignupView.vue"),
-        },
+        { path: "", name: "home", component: HomeView },
+        { path: "login", name: "login", component: LoginView },
+        { path: "signup", name: "signup", component: SignupView },
       ],
     },
     {
       path: "/app",
-      component: () => import("@/layouts/AppLayout.vue"),
+      component: AppLayout,
       meta: { requiresAuth: true },
       children: [
-        {
-          path: "",
-          name: "overview",
-          component: () => import("@/views/OverviewView.vue"),
-        },
-        {
-          path: "plants",
-          name: "plants",
-          component: () => import("@/views/PlantsView.vue"),
-        },
-        {
-          path: "sight",
-          name: "sight",
-          component: () => import("@/views/SightView.vue"),
-        },
-        {
-          path: "device",
-          name: "device",
-          component: () => import("@/views/DeviceView.vue"),
-        },
-        {
-          path: "account",
-          name: "account",
-          component: () => import("@/views/AccountView.vue"),
-        },
+        { path: "", name: "overview", component: OverviewView },
+        { path: "edit", name: "edit", component: DashboardEditView },
+        { path: "plants", name: "plants", component: PlantsView },
+        { path: "sight", name: "sight", component: SightView },
+        { path: "device", name: "device", component: DeviceView },
+        { path: "account", name: "account", component: AccountView },
       ],
     },
     { path: "/:pathMatch(.*)*", redirect: "/" },
   ],
-  scrollBehavior() {
-    return { top: 0 };
+  scrollBehavior(to, from, savedPosition) {
+    if (to.path.startsWith("/app") && from.path.startsWith("/app")) {
+      return false;
+    }
+    return savedPosition || { top: 0 };
   },
 });
 
