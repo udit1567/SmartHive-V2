@@ -28,21 +28,22 @@ defineEmits(["update:modelValue"]);
 }
 
 span {
-  font-size: 0.72rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink);
 }
 
 input {
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  padding: 0.55rem 0 0.7rem;
+  width: 100%;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.75rem 0.85rem;
   outline: none;
 }
 
 input:focus {
-  border-bottom-color: var(--ink);
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(0, 109, 119, 0.18);
 }
 </style>

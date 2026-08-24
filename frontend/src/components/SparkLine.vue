@@ -2,21 +2,22 @@
 import { computed } from "vue";
 
 const props = defineProps({
-  points: { type: Array, default: () => [] },
+  values: { type: Array, default: () => [] },
+  color: { type: String, default: "#006d77" },
 });
 
 const path = computed(() => {
-  const values = props.points.filter((n) => typeof n === "number");
-  if (values.length < 2) {
+  const nums = props.values.filter((n) => typeof n === "number");
+  if (nums.length < 2) {
     return "";
   }
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const min = Math.min(...nums);
+  const max = Math.max(...nums);
   const span = max - min || 1;
-  return values
+  return nums
     .map((value, index) => {
-      const x = (index / (values.length - 1)) * 100;
-      const y = 36 - ((value - min) / span) * 32;
+      const x = (index / (nums.length - 1)) * 100;
+      const y = 38 - ((value - min) / span) * 30;
       return `${index === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
     })
     .join(" ");
@@ -24,8 +25,8 @@ const path = computed(() => {
 </script>
 
 <template>
-  <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
-    <path v-if="path" :d="path" />
+  <svg viewBox="0 0 100 42" preserveAspectRatio="none" aria-hidden="true">
+    <path v-if="path" :d="path" :stroke="color" />
   </svg>
 </template>
 
@@ -38,7 +39,7 @@ svg {
 
 path {
   fill: none;
-  stroke: var(--ink);
-  stroke-width: 0.6;
+  stroke-width: 1.6;
+  stroke-linecap: round;
 }
 </style>
