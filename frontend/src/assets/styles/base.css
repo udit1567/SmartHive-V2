@@ -1,0 +1,78 @@
+:root {
+  --paper: #f4f0e8;
+  --paper-2: #ebe4d6;
+  --ink: #161412;
+  --muted: #7c7468;
+  --line: rgba(22, 20, 18, 0.12);
+  --accent: #6f5b3c;
+  --danger: #8c3a2c;
+  --ok: #3d5a45;
+  --serif: "Cormorant Garamond", "Times New Roman", serif;
+  --sans: "Outfit", "Helvetica Neue", sans-serif;
+  --space: clamp(1.25rem, 3vw, 2.5rem);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-weight: 300;
+  font-size: 16px;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--serif);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+::selection {
+  background: var(--ink);
+  color: var(--paper);
+}
