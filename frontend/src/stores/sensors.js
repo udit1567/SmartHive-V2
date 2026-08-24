@@ -1,19 +1,9 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
+import { PINS } from "@/constants/pins";
 import { ApiError, request } from "@/api/client";
 import { useAuthStore } from "@/stores/auth";
-
-export const SENSOR_META = [
-  { key: "D1", label: "Temperature", unit: "°C" },
-  { key: "D2", label: "Humidity", unit: "%" },
-  { key: "D3", label: "Soil moisture", unit: "%" },
-  { key: "D4", label: "Air quality", unit: "AQI" },
-  { key: "D5", label: "Light", unit: "lx" },
-  { key: "D6", label: "Pressure", unit: "hPa" },
-  { key: "D7", label: "Voltage", unit: "V" },
-  { key: "D8", label: "Auxiliary", unit: "" },
-];
 
 export const useSensorStore = defineStore("sensors", () => {
   const series = ref([]);
@@ -38,14 +28,14 @@ export const useSensorStore = defineStore("sensors", () => {
           }
           throw err;
         }),
-        ...SENSOR_META.map((sensor) =>
-          request(`/get_${sensor.key.toLowerCase()}/${auth.uid}`).catch(() => null)
+        ...PINS.map((pin) =>
+          request(`/get_${pin.toLowerCase()}/${auth.uid}`).catch(() => null)
         ),
       ]);
       series.value = history.data ?? [];
-      latestByKey.value = SENSOR_META.reduce((acc, sensor, index) => {
+      latestByKey.value = PINS.reduce((acc, pin, index) => {
         const payload = points[index];
-        acc[sensor.key] = payload ? payload[sensor.key] : null;
+        acc[pin] = payload ? payload[pin] : null;
         return acc;
       }, {});
     } catch (err) {
@@ -56,5 +46,22 @@ export const useSensorStore = defineStore("sensors", () => {
     }
   }
 
-  return { series, latestByKey, latest, loading, error, refresh };
+  let pollTimer = null;
+
+  function startPolling(ms = 15000) {
+    if (pollTimer) {
+      return;
+    }
+    refresh();
+    pollTimer = setInterval(() => {
+      refresh();
+    }, ms);
+  }
+
+  function stopPolling() {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+
+  return { series, latestByKey, latest, loading, error, refresh, startPolling, stopPolling };
 });
