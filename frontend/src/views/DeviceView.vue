@@ -17,52 +17,81 @@ async function copy() {
 
 <template>
   <section>
-    <p class="eyebrow">Hardware</p>
-    <h1>The quiet key.</h1>
-    <p class="lede">
-      Send this token as the Authorization header from your board. It is not a
-      password. Treat it as a household spare.
-    </p>
-    <button type="button" class="token" @click="copy">
-      {{ auth.deviceToken || "—" }}
-    </button>
-    <p class="hint">{{ copied ? "Copied." : "Click to copy." }}</p>
+    <header>
+      <h1>Add Device</h1>
+      <p>Use this token in the Authorization header from your board.</p>
+    </header>
+    <article>
+      <p class="label">Device token</p>
+      <button type="button" @click="copy">{{ auth.deviceToken || "—" }}</button>
+      <p class="hint">{{ copied ? "Copied to clipboard." : "Click the token to copy." }}</p>
+    </article>
+    <article>
+      <p class="label">Datastreams</p>
+      <p class="hint">
+        D1–D8 are unlabeled pins. Send temperature on D1, humidity on D2, or
+        anything you map in the dashboard.
+      </p>
+      <pre>POST /update
+Authorization: {{ auth.deviceToken || "YOUR_TOKEN" }}
+
+{ "D1": 24.5, "D2": 61 }</pre>
+    </article>
   </section>
 </template>
 
 <style scoped>
-.eyebrow {
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  font-size: 0.7rem;
-  color: var(--muted);
+header {
+  margin-bottom: 1.2rem;
 }
 
 h1 {
-  font-size: clamp(2.6rem, 5vw, 4.2rem);
-  margin: 0.4rem 0 1rem;
+  font-size: 1.8rem;
+  font-weight: 800;
 }
 
-.lede {
-  max-width: 32rem;
+header p,
+.hint {
   color: var(--muted);
 }
 
-.token {
+article {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 1.3rem;
+  box-shadow: var(--shadow);
+  max-width: 36rem;
+}
+
+.label {
+  font-weight: 700;
+  margin-bottom: 0.6rem;
+}
+
+button {
   display: block;
-  margin-top: 2.5rem;
-  background: none;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  padding: 0.8rem 0;
-  font-family: var(--serif);
-  font-size: 2rem;
-  letter-spacing: 0.08em;
+  width: 100%;
+  text-align: left;
+  background: var(--oasis-mist);
+  border: 1px solid var(--oasis-water);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--brand);
 }
 
 .hint {
   margin-top: 0.7rem;
-  color: var(--muted);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
+}
+
+pre {
+  margin-top: 0.8rem;
+  background: var(--oasis-mist);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  overflow: auto;
+  font-size: 0.82rem;
 }
 </style>
