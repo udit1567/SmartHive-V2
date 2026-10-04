@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 
 import { request } from "@/api/client";
 import AppButton from "@/components/AppButton.vue";
@@ -13,6 +13,8 @@ const props = defineProps({
   imagesKey: { type: String, required: true },
   countKey: { type: String, required: true },
 });
+
+const emit = defineEmits(["detected"]);
 
 const auth = useAuthStore();
 const file = ref(null);
@@ -52,6 +54,7 @@ async function detect() {
       deviceToken: auth.deviceToken,
       form: body,
     });
+    emit("detected", result.value);
     await loadImages();
   } catch (err) {
     error.value = err.message;
@@ -61,6 +64,24 @@ async function detect() {
 }
 
 onMounted(loadImages);
+
+// Collapse repeated boxes of the same class (e.g. several overlapping leaf
+// regions all tagged "Apple Scab Leaf") into one row with a count, instead
+// of a long list of near-duplicate entries.
+const groupedDetections = computed(() => {
+  const grouped = new Map();
+  for (const item of result.value?.detections || []) {
+    const cls = item["class"];
+    const entry = grouped.get(cls);
+    if (entry) {
+      entry.count += 1;
+      entry.confidence = Math.max(entry.confidence, item.confidence);
+    } else {
+      grouped.set(cls, { class: cls, count: 1, confidence: item.confidence });
+    }
+  }
+  return [...grouped.values()].sort((a, b) => b.confidence - a.confidence);
+});
 </script>
 
 <template>
@@ -78,16 +99,15 @@ onMounted(loadImages);
         </label>
         <img v-if="preview" :src="preview" alt="Selected upload" />
         <AppButton label="Detect" :busy="busy" />
+        <p v-if="error" class="err">{{ error }}</p>
       </form>
-
-      <p v-if="error" class="err">{{ error }}</p>
 
       <div v-if="result" class="result">
         <h2>{{ result[countKey] ?? 0 }} detections</h2>
         <ul>
-          <li v-for="(item, index) in result.detections || []" :key="index">
-            {{ item["class"] }}
-            <span>{{ (item.confidence * 100).toFixed(0) }}%</span>
+          <li v-for="item in groupedDetections" :key="item.class">
+            {{ item.class }}
+            <span>{{ item.count > 1 ? `${item.count}× · ` : "" }}{{ (item.confidence * 100).toFixed(0) }}%</span>
           </li>
         </ul>
       </div>
@@ -118,12 +138,17 @@ header p {
   border-radius: var(--radius);
   padding: 1.25rem;
   box-shadow: var(--shadow);
-  max-width: 36rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1.25rem;
 }
 
 form {
   display: grid;
   gap: 1rem;
+  flex: 1 1 20rem;
+  min-width: 0;
 }
 
 .drop {
@@ -153,7 +178,8 @@ img {
 }
 
 .result {
-  margin-top: 1.1rem;
+  flex: 1 1 16rem;
+  min-width: 0;
 }
 
 h2 {

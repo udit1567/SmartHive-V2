@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 
 import pytz
@@ -21,6 +22,21 @@ class User(db.Model):
     address = db.Column(db.String(255), nullable=False)
     source = db.Column(db.String(255), nullable=True)
     auth_token = db.Column(db.String(64), unique=True, nullable=True)
+    telegram_bot_token = db.Column(db.String(120), nullable=True)
+    telegram_chat_id = db.Column(db.String(64), nullable=True)
+    watched_classes = db.Column(db.Text, nullable=True)
+    gemini_api_key = db.Column(db.String(255), nullable=True)
+
+    def get_watched_classes(self):
+        if not self.watched_classes:
+            return []
+        try:
+            return json.loads(self.watched_classes)
+        except (TypeError, ValueError):
+            return []
+
+    def set_watched_classes(self, classes):
+        self.watched_classes = json.dumps(list(classes)) if classes else None
 
 
 class Data(db.Model):
@@ -52,4 +68,79 @@ class Data(db.Model):
             "D7": self.D7,
             "D8": self.D8,
             "user_id": self.user_id,
+        }
+
+
+class PlantDetection(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, nullable=False, default=get_ist_time)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    image_url = db.Column(db.String(255), nullable=True)
+    total_detected = db.Column(db.Integer, nullable=False, default=0)
+    classes = db.Column(db.Text, nullable=True)
+    user = db.relationship(
+        "User", backref=db.backref("plant_detections", lazy=True, cascade="all, delete-orphan")
+    )
+
+    def get_classes(self):
+        if not self.classes:
+            return []
+        try:
+            return json.loads(self.classes)
+        except (TypeError, ValueError):
+            return []
+
+    def set_classes(self, detections):
+        self.classes = json.dumps(detections) if detections else None
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "timestamp": self.timestamp.strftime("%d %B %Y %H:%M"),
+            "imageUrl": self.image_url,
+            "totalDetected": self.total_detected,
+            "classes": self.get_classes(),
+        }
+
+
+class ChatThread(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    title = db.Column(db.String(120), nullable=False, default="New chat")
+    created_at = db.Column(db.DateTime, nullable=False, default=get_ist_time)
+    updated_at = db.Column(db.DateTime, nullable=False, default=get_ist_time, onupdate=get_ist_time)
+    user = db.relationship(
+        "User", backref=db.backref("chat_threads", lazy=True, cascade="all, delete-orphan")
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "createdAt": self.created_at.strftime("%d %B %Y %H:%M"),
+            "updatedAt": self.updated_at.strftime("%d %B %Y %H:%M"),
+        }
+
+
+class ChatMessage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    thread_id = db.Column(db.Integer, db.ForeignKey("chat_thread.id"), nullable=False)
+    role = db.Column(db.String(20), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    image_url = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=get_ist_time)
+    thread = db.relationship(
+        "ChatThread",
+        backref=db.backref(
+            "messages", lazy=True, cascade="all, delete-orphan", order_by="ChatMessage.created_at"
+        ),
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "role": self.role,
+            "content": self.content,
+            "imageUrl": self.image_url,
+            "createdAt": self.created_at.strftime("%d %B %Y %H:%M"),
         }

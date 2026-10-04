@@ -1,0 +1,24 @@
+# Render Blueprint — New > Blueprint in the Render dashboard, pick this repo.
+services:
+  - type: web
+    name: smarthive
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # torch + YOLOv8-large need well over 512 MB; smaller plans get OOM-killed
+    # on the first detection request. Persistent disks also need a paid plan.
+    plan: standard
+    healthCheckPath: /object_classes
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      # Direct download URL for the plant-disease best.pt (set in dashboard).
+      - key: YOLO_PLANT_WEIGHTS_URL
+        sync: false
+    # SQLite DB + saved detection images survive deploys/restarts.
+    disk:
+      name: smarthive-data
+      mountPath: /data
+      sizeGB: 1

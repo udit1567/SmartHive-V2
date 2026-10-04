@@ -4,7 +4,6 @@ import AppLayout from "@/layouts/AppLayout.vue";
 import MarketingLayout from "@/layouts/MarketingLayout.vue";
 import { useAuthStore } from "@/stores/auth";
 import AccountView from "@/views/AccountView.vue";
-import DashboardEditView from "@/views/DashboardEditView.vue";
 import DeviceView from "@/views/DeviceView.vue";
 import HomeView from "@/views/HomeView.vue";
 import LoginView from "@/views/LoginView.vue";
@@ -31,7 +30,6 @@ const router = createRouter({
       meta: { requiresAuth: true },
       children: [
         { path: "", name: "overview", component: OverviewView },
-        { path: "edit", name: "edit", component: DashboardEditView },
         { path: "plants", name: "plants", component: PlantsView },
         { path: "sight", name: "sight", component: SightView },
         { path: "device", name: "device", component: DeviceView },

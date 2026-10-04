@@ -5,4 +5,4 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host=Config.HOST, port=Config.PORT)
+    app.run(debug=True, host=Config.HOST, port=Config.PORT, threaded=True)

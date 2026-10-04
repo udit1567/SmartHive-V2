@@ -89,6 +89,17 @@ export const useAuthStore = defineStore("auth", () => {
     });
   }
 
+  async function updateProfile(payload) {
+    if (!email.value || !token.value) {
+      return null;
+    }
+    return request(`/profile/${encodeURIComponent(email.value)}`, {
+      method: "PUT",
+      token: token.value,
+      json: payload,
+    });
+  }
+
   return {
     session,
     error,
@@ -102,5 +113,6 @@ export const useAuthStore = defineStore("auth", () => {
     signup,
     logout,
     loadProfile,
+    updateProfile,
   };
 });

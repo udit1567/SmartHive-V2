@@ -1,5 +1,5 @@
 <script setup>
-import DetectPanel from "@/components/DetectPanel.vue";
+import AiSurveillancePanel from "@/components/AiSurveillancePanel.vue";
 import LiveStream from "@/components/LiveStream.vue";
 </script>
 
@@ -8,15 +8,9 @@ import LiveStream from "@/components/LiveStream.vue";
     <LiveStream
       title="Live object detection"
       detect-path="/detect_live_objects"
+      stream-path="/stream_live_objects"
       count-key="total_objects"
     />
-    <DetectPanel
-      title="Object Detection"
-      subtitle="Upload a still from the hive camera."
-      detect-path="/detect_objects"
-      fetch-path="/fetch_object_detection_images"
-      images-key="object_detection_images"
-      count-key="total_objects"
-    />
+    <AiSurveillancePanel />
   </div>
 </template>

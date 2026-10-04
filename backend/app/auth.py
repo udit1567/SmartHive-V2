@@ -21,8 +21,11 @@ def generate_auth_token(length=8):
 
 
 def get_device_user():
-    """Look up the device user from the Authorization header (legacy auth_token)."""
-    api_token = request.headers.get("Authorization")
+    """Look up the device user from the Authorization header (legacy auth_token),
+    falling back to a `token` query param for endpoints an <img> tag hits
+    directly and can't attach a custom header to (e.g. the live MJPEG stream).
+    """
+    api_token = request.headers.get("Authorization") or request.args.get("token")
     if not api_token:
         return None, ({"message": "Missing required parameters"}, 400)
 

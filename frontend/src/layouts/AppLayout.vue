@@ -14,11 +14,10 @@ const router = useRouter();
 
 const links = [
   { to: { name: "overview" }, label: "Dashboard" },
-  { to: { name: "edit" }, label: "Edit" },
-  { to: { name: "plants" }, label: "Plant Health" },
+  { to: { name: "plants" }, label: "Agriculture Monitoring" },
   { to: { name: "sight" }, label: "Object Detection" },
   { to: { name: "device" }, label: "Add Device" },
-  { to: { name: "account" }, label: "Profile" },
+  { to: { name: "account" }, label: "Settings" },
 ];
 
 async function signOut() {
@@ -137,6 +136,7 @@ button {
 
 main {
   padding: 1.5rem var(--space) 3rem;
+  min-width: 0;
 }
 
 @media (max-width: 840px) {

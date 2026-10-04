@@ -21,22 +21,24 @@ async function copy() {
       <h1>Add Device</h1>
       <p>Use this token in the Authorization header from your board.</p>
     </header>
-    <article>
-      <p class="label">Device token</p>
-      <button type="button" @click="copy">{{ auth.deviceToken || "—" }}</button>
-      <p class="hint">{{ copied ? "Copied to clipboard." : "Click the token to copy." }}</p>
-    </article>
-    <article>
-      <p class="label">Datastreams</p>
-      <p class="hint">
-        D1–D8 are unlabeled pins. Send temperature on D1, humidity on D2, or
-        anything you map in the dashboard.
-      </p>
-      <pre>POST /update
+    <div class="cards">
+      <article>
+        <p class="label">Device token</p>
+        <button type="button" @click="copy">{{ auth.deviceToken || "—" }}</button>
+        <p class="hint">{{ copied ? "Copied to clipboard." : "Click the token to copy." }}</p>
+      </article>
+      <article>
+        <p class="label">Datastreams</p>
+        <p class="hint">
+          D1–D8 are unlabeled pins. Send temperature on D1, humidity on D2, or
+          anything you map in the dashboard.
+        </p>
+        <pre>POST /update
 Authorization: {{ auth.deviceToken || "YOUR_TOKEN" }}
 
 { "D1": 24.5, "D2": 61 }</pre>
-    </article>
+      </article>
+    </div>
   </section>
 </template>
 
@@ -55,12 +57,20 @@ header p,
   color: var(--muted);
 }
 
+.cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  align-items: flex-start;
+}
+
 article {
   background: #fff;
   border-radius: var(--radius);
   padding: 1.3rem;
   box-shadow: var(--shadow);
-  max-width: 36rem;
+  flex: 1 1 22rem;
+  min-width: 0;
 }
 
 .label {

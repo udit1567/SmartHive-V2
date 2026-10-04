@@ -1,14 +1,17 @@
 <script setup>
 import { onUnmounted, ref, watch } from "vue";
 
-import { request } from "@/api/client";
+import { BASE_URL, request } from "@/api/client";
 import { useAuthStore } from "@/stores/auth";
 
 const props = defineProps({
   title: { type: String, required: true },
   detectPath: { type: String, required: true },
+  streamPath: { type: String, required: true },
   countKey: { type: String, required: true },
 });
+
+const emit = defineEmits(["detected"]);
 
 const auth = useAuthStore();
 const mode = ref("webcam");
@@ -23,12 +26,44 @@ const imgEl = ref(null);
 const stageEl = ref(null);
 const canvasEl = ref(null);
 const frameSize = ref({ width: 0, height: 0 });
+const displayUrl = ref("");
 
 let mediaStream = null;
 let loopTimer = 0;
 let inFlight = false;
 
+function buildStreamUrl() {
+  const params = new URLSearchParams({
+    source_url: streamUrl.value.trim(),
+    token: auth.deviceToken,
+  });
+  return `${BASE_URL}${props.streamPath}?${params.toString()}`;
+}
+
 watch(detections, drawBoxes, { deep: true });
+
+// A fixed, deterministic per-class palette so each class keeps the same
+// color across frames — mirrors YOLO's own annotator look.
+const BOX_COLORS = [
+  "#3f6fff",
+  "#ffd23f",
+  "#2ecc71",
+  "#ff6b6b",
+  "#a55eea",
+  "#ff9f43",
+  "#26c6da",
+  "#ee5a6f",
+  "#8395a7",
+  "#10ac84",
+];
+
+function colorForClass(name) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) {
+    hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  }
+  return BOX_COLORS[hash % BOX_COLORS.length];
+}
 
 function drawBoxes() {
   const canvas = canvasEl.value;
@@ -51,8 +86,6 @@ function drawBoxes() {
   const srcH = frameSize.value.height || source?.videoHeight || source?.naturalHeight || height;
   const scaleX = width / srcW;
   const scaleY = height / srcH;
-  ctx.strokeStyle = "#006d77";
-  ctx.fillStyle = "#006d77";
   ctx.lineWidth = 2;
   ctx.font = "600 13px Nunito, sans-serif";
   for (const item of detections.value) {
@@ -64,12 +97,14 @@ function drawBoxes() {
     const y = y1 * scaleY;
     const w = (x2 - x1) * scaleX;
     const h = (y2 - y1) * scaleY;
+    const color = colorForClass(item["class"]);
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
     ctx.strokeRect(x, y, w, h);
-    const label = `${item["class"]} ${Math.round(item.confidence * 100)}%`;
+    const label = `${item["class"]} ${item.confidence.toFixed(2)}`;
     ctx.fillRect(x, Math.max(0, y - 18), Math.min(ctx.measureText(label).width + 10, w || 120), 18);
     ctx.fillStyle = "#fff";
     ctx.fillText(label, x + 5, Math.max(12, y - 5));
-    ctx.fillStyle = "#006d77";
   }
 }
 
@@ -88,36 +123,30 @@ async function grabWebcamFrame() {
 }
 
 async function detectOnce() {
-  if (inFlight || !running.value) {
+  if (inFlight || !running.value || mode.value !== "webcam") {
     return;
   }
   inFlight = true;
   busy.value = true;
   try {
-    let data;
-    if (mode.value === "webcam") {
-      const blob = await grabWebcamFrame();
-      if (!blob) {
-        return;
-      }
-      const body = new FormData();
-      body.append("image", blob, "frame.jpg");
-      data = await request(props.detectPath, {
-        method: "POST",
-        deviceToken: auth.deviceToken,
-        form: body,
-      });
-    } else {
-      data = await request(props.detectPath, {
-        method: "POST",
-        deviceToken: auth.deviceToken,
-        json: { source_url: streamUrl.value.trim() },
-      });
+    const blob = await grabWebcamFrame();
+    if (!blob) {
+      return;
     }
+    const body = new FormData();
+    body.append("image", blob, "frame.jpg");
+    const data = await request(props.detectPath, {
+      method: "POST",
+      deviceToken: auth.deviceToken,
+      form: body,
+    });
     detections.value = data.detections || [];
     count.value = data[props.countKey] ?? detections.value.length;
     if (data.width && data.height) {
       frameSize.value = { width: data.width, height: data.height };
+    }
+    if (detections.value.length) {
+      emit("detected", data);
     }
     error.value = "";
     requestAnimationFrame(drawBoxes);
@@ -130,13 +159,15 @@ async function detectOnce() {
 }
 
 function scheduleLoop() {
-  const delay = mode.value === "webcam" ? 450 : 900;
+  if (mode.value !== "webcam") {
+    return;
+  }
   loopTimer = window.setTimeout(async () => {
     await detectOnce();
     if (running.value) {
       scheduleLoop();
     }
-  }, delay);
+  }, 450);
 }
 
 async function startWebcam() {
@@ -173,12 +204,14 @@ async function start() {
   try {
     if (mode.value === "webcam") {
       await startWebcam();
+      running.value = true;
+      await detectOnce();
+      scheduleLoop();
     } else {
       stopMedia();
+      displayUrl.value = buildStreamUrl();
+      running.value = true;
     }
-    running.value = true;
-    await detectOnce();
-    scheduleLoop();
   } catch (err) {
     error.value = err.message || "Could not start the camera.";
     running.value = false;
@@ -192,6 +225,8 @@ function stop() {
   if (videoEl.value) {
     videoEl.value.removeAttribute("src");
   }
+  displayUrl.value = "";
+  detections.value = [];
 }
 
 function setMode(next) {
@@ -231,9 +266,9 @@ onUnmounted(stop);
     <div class="stage" ref="stageEl">
       <video v-show="mode === 'webcam'" ref="videoEl" autoplay playsinline muted></video>
       <img
-        v-if="mode === 'url' && streamUrl"
+        v-if="mode === 'url' && displayUrl"
         ref="imgEl"
-        :src="streamUrl"
+        :src="displayUrl"
         alt="Camera stream"
       />
       <canvas ref="canvasEl"></canvas>
@@ -243,7 +278,8 @@ onUnmounted(stop);
     <div class="actions">
       <button v-if="!running" type="button" class="go" @click="start">Start live detection</button>
       <button v-else type="button" class="stop" @click="stop">Stop</button>
-      <span v-if="running">{{ busy ? "Reading frame…" : `${count} live hits` }}</span>
+      <span v-if="running && mode === 'webcam'">{{ busy ? "Reading frame…" : `${count} live hits` }}</span>
+      <span v-else-if="running && mode === 'url'">Streaming annotated feed from the backend…</span>
     </div>
 
     <p v-if="error" class="err">{{ error }}</p>

@@ -17,11 +17,6 @@ from app.models import User
 bp = Blueprint("auth", __name__)
 
 
-@bp.route("/")
-def index():
-    return "hello from index page"
-
-
 @bp.route("/login", methods=["POST"])
 def login():
     data = request.get_json() or {}
@@ -82,6 +77,22 @@ def logout():
     return response, 200
 
 
+def _serialize_profile(user):
+    return {
+        "id": user.id,
+        "name": user.first_name,
+        "firstName": user.first_name,
+        "lastName": user.last_name,
+        "email": user.email,
+        "address": user.address,
+        "token": user.auth_token,
+        "telegramBotToken": user.telegram_bot_token,
+        "telegramChatId": user.telegram_chat_id,
+        "watchedClasses": user.get_watched_classes(),
+        "geminiApiKey": user.gemini_api_key,
+    }
+
+
 @bp.route("/profile/<string:getemail>", methods=["GET"])
 @jwt_required()
 def my_profile(getemail):
@@ -93,14 +104,39 @@ def my_profile(getemail):
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    return jsonify(
-        {
-            "id": user.id,
-            "name": user.first_name,
-            "email": user.email,
-            "token": user.auth_token,
-        }
-    ), 200
+    return jsonify(_serialize_profile(user)), 200
+
+
+@bp.route("/profile/<string:getemail>", methods=["PUT"])
+@jwt_required()
+def update_profile(getemail):
+    current_user_email = get_jwt_identity()
+    if not current_user_email or current_user_email != getemail:
+        return jsonify({"error": "Unauthorized Access"}), 401
+
+    user = User.query.filter_by(email=getemail).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    data = request.get_json() or {}
+    if "firstName" in data:
+        user.first_name = data["firstName"]
+    if "lastName" in data:
+        user.last_name = data["lastName"]
+    if "address" in data:
+        user.address = data["address"]
+    if "telegramBotToken" in data:
+        user.telegram_bot_token = (data["telegramBotToken"] or "").strip() or None
+    if "telegramChatId" in data:
+        user.telegram_chat_id = (data["telegramChatId"] or "").strip() or None
+    if "watchedClasses" in data:
+        user.set_watched_classes(data["watchedClasses"] or [])
+    if "geminiApiKey" in data:
+        user.gemini_api_key = (data["geminiApiKey"] or "").strip() or None
+
+    db.session.commit()
+
+    return jsonify(_serialize_profile(user)), 200
 
 
 @bp.after_app_request

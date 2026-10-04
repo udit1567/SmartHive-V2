@@ -29,5 +29,6 @@ class Config:
     YOLO_OBJECT_WEIGHTS = _path("YOLO_OBJECT_WEIGHTS", "yolov8l.pt")
     YOLO_PLANT_WEIGHTS = _path("YOLO_PLANT_WEIGHTS", "best.pt")
     DETECTION_FOLDER = _path("DETECTION_FOLDER", "Detection images")
+    FRONTEND_DIST = _path("FRONTEND_DIST", os.path.join("..", "frontend", "dist"))
     HOST = os.environ.get("HOST", "0.0.0.0")
     PORT = int(os.environ.get("PORT", "5000"))
