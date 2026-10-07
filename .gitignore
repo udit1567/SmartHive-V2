@@ -5,6 +5,9 @@ __pycache__/
 *.py[cod]
 *.sqlite3
 *.db
+# ...but ship the seeded production DB so the free-tier (diskless) Render
+# deploy boots with the existing account + data instead of an empty DB.
+!backend/instance/build.sqlite3
 .env
 *.pt
 Detection images/

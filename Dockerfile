@@ -44,12 +44,16 @@ COPY backend/ ./
 # Built frontend, at the path Config.FRONTEND_DIST resolves to by default
 COPY --from=frontend /frontend/dist /app/frontend/dist
 
-# App state lives in /data. On Render's free tier there is no persistent disk,
-# so this is ephemeral and the SQLite DB resets on each deploy/restart; attach
-# a disk (paid plan) at /data to make it persist.
+# Boot from the existing seeded SQLite DB baked into the image (copied above
+# via `COPY backend/ ./`), so the free-tier (diskless) deploy already has the
+# account and sensor data. NOTE: with no persistent disk, writes made at
+# runtime (new readings/signups) are lost on restart and the DB resets to this
+# committed snapshot on each deploy — re-commit backend/instance/build.sqlite3
+# to update it. For durable writes, add a disk at /data (paid plan) and point
+# DATABASE_URI back at it.
 ENV HOST=0.0.0.0 \
     PORT=5000 \
-    DATABASE_URI=sqlite:////data/smarthive.sqlite3 \
+    DATABASE_URI=sqlite:////app/backend/instance/build.sqlite3 \
     DETECTION_FOLDER=/data/detections
 RUN mkdir -p /data/detections
 

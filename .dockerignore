@@ -10,7 +10,9 @@ frontend/dist
 backend/.venv
 backend/venv
 backend/env
-backend/instance
 backend/Detection images
 backend/*.sqlite3
+# Keep instance/ out EXCEPT the seeded DB baked into the image.
+backend/instance/*
+!backend/instance/build.sqlite3
 backend/firmwared-hardware
