@@ -5,6 +5,10 @@ Flask-SQLAlchemy==3.1.1
 Pillow==11.1.0
 pytz==2025.1
 python-dotenv==1.0.1
-ultralytics==8.3.74
-torch==2.6.0
-torchvision==0.21.0
+
+# Vision/AI (YOLO object + plant-disease detection) is intentionally NOT
+# deployed — torch + ultralytics need well over Render's free-tier RAM and
+# add ~2.5 GB to the image. They are imported lazily, so the app still runs
+# (auth + sensors) without them; the /detect_* routes return 503. To enable
+# vision locally, install these in your venv:
+#     pip install ultralytics==8.3.74 torch==2.6.0 torchvision==0.21.0

@@ -5,20 +5,19 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    # torch + YOLOv8-large need well over 512 MB; smaller plans get OOM-killed
-    # on the first detection request. Persistent disks also need a paid plan.
-    plan: standard
-    healthCheckPath: /object_classes
+    # Vision/AI (YOLO) is not deployed, so the image fits the free tier.
+    plan: free
+    healthCheckPath: /
     envVars:
       - key: SECRET_KEY
         generateValue: true
       - key: JWT_SECRET_KEY
         generateValue: true
-      # Direct download URL for the plant-disease best.pt (set in dashboard).
-      - key: YOLO_PLANT_WEIGHTS_URL
-        sync: false
-    # SQLite DB + saved detection images survive deploys/restarts.
-    disk:
-      name: smarthive-data
-      mountPath: /data
-      sizeGB: 1
+    # NOTE: the free tier has no persistent disk, so the SQLite DB and any
+    # saved detection images live on an ephemeral filesystem and reset on each
+    # deploy/restart. To keep data, switch to a paid plan and add a disk:
+    #   plan: standard
+    #   disk:
+    #     name: smarthive-data
+    #     mountPath: /data
+    #     sizeGB: 1

@@ -29,48 +29,33 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# OpenCV (pulled in by ultralytics) needs these shared libraries.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app/backend
 
-# CPU-only torch first — the default PyPI wheels bundle CUDA and add ~2.5 GB.
-RUN pip install --index-url https://download.pytorch.org/whl/cpu \
-        torch==2.6.0 torchvision==0.21.0
+# Vision/AI (torch + ultralytics) is intentionally not installed here — it
+# needs more RAM than Render's free tier and adds ~2.5 GB to the image. The
+# /detect_* routes return 503; auth + sensors run normally. See
+# backend/requirements.txt to enable vision locally.
 COPY backend/requirements.txt ./
 RUN pip install -r requirements.txt gunicorn==23.0.0
 
-# Backend source (+ any *.pt weights present in backend/)
+# Backend source
 COPY backend/ ./
 
-# *.pt files are gitignored, so builds from git (e.g. Render) have none.
-# Download any that are missing. Render passes env vars of the same name as
-# build args; leave a URL empty to skip it (vision routes then return 503).
-ARG YOLO_OBJECT_WEIGHTS_URL=https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8l.pt
-ARG YOLO_PLANT_WEIGHTS_URL=""
-RUN python - <<PY
-import os, urllib.request
-for name, url in (("yolov8l.pt", "${YOLO_OBJECT_WEIGHTS_URL}"), ("best.pt", "${YOLO_PLANT_WEIGHTS_URL}")):
-    if url and not os.path.exists(name):
-        print(f"Downloading {name} from {url}")
-        urllib.request.urlretrieve(url, name)
-PY
 # Built frontend, at the path Config.FRONTEND_DIST resolves to by default
 COPY --from=frontend /frontend/dist /app/frontend/dist
 
-# Persistent state lives in /data — mount a volume / Render disk there.
+# App state lives in /data. On Render's free tier there is no persistent disk,
+# so this is ephemeral and the SQLite DB resets on each deploy/restart; attach
+# a disk (paid plan) at /data to make it persist.
 ENV HOST=0.0.0.0 \
     PORT=5000 \
     DATABASE_URI=sqlite:////data/smarthive.sqlite3 \
-    DETECTION_FOLDER=/data/detections \
-    YOLO_CONFIG_DIR=/data/ultralytics
-RUN mkdir -p /data/detections /data/ultralytics
+    DETECTION_FOLDER=/data/detections
+RUN mkdir -p /data/detections
 
 EXPOSE 5000
 
-# One worker: YOLO models and live-stream state are cached in-process, so
-# extra workers would each load their own copy. Threads handle concurrency;
-# timeout 0 keeps long-lived MJPEG streams from being killed.
+# One worker: live-stream state is cached in-process, so extra workers would
+# each keep their own copy. Threads handle concurrency; timeout 0 keeps
+# long-lived MJPEG streams from being killed.
 CMD ["sh", "-c", "exec gunicorn --bind 0.0.0.0:${PORT} --workers 1 --threads 8 --worker-class gthread --timeout 0 run:app"]
